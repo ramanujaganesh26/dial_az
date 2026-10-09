@@ -16,19 +16,18 @@ Item {
     // Visual Theme Colors
     property color accentColor: "#00F0FF"       // Neon Cyan primary needle
     property color targetColor: "#FF9E00"       // Neon Amber target bug
-    property color dialBgColor: "#0B1120"       // Dark aerospace navy
+    property color dialBgColor: "#070C18"       // Deep dark aerospace navy
     property color dialRimColor: "#1E293B"      // Slate rim
     property color textColor: "#F8FAFC"         // Text color
-    property color tickColor: "#475569"         // Minor ticks
+    property color tickColor: "#334155"         // Minor ticks
     property color majorTickColor: "#94A3B8"    // Major ticks
 
     // Signals
     signal azimuthChangedByUser(real value)
     signal targetAzimuthChangedByUser(real value)
 
-    // Sized for ~1/7th of 10-inch HMI Display (1024x600 screen)
-    implicitWidth: 150
-    implicitHeight: 150
+    implicitWidth: 350
+    implicitHeight: 350
 
     // Ensure azimuth stays normalized in [0, 360) range
     onAzimuthChanged: {
@@ -57,7 +56,7 @@ Item {
         return directions[index];
     }
 
-    // Background Glow / Outer Ring Shadow
+    // Outer Glow Ring Shadow
     Rectangle {
         id: outerGlowRing
         anchors.fill: parent
@@ -65,15 +64,17 @@ Item {
         radius: width / 2
         color: "transparent"
         border.color: root.accentColor
-        border.width: 1
-        opacity: 0.25
+        border.width: 1.5
+        opacity: dialMouseArea.pressed ? 0.6 : 0.25
+
+        Behavior on opacity { NumberAnimation { duration: 150 } }
     }
 
     // Main Dial Canvas for static ticks, numbers, & grid
     Canvas {
         id: dialCanvas
         anchors.fill: parent
-        anchors.margins: Math.max(4, parent.width * 0.025)
+        anchors.margins: Math.max(4, parent.width * 0.02)
         antialiasing: true
 
         onWidthChanged: requestPaint()
@@ -89,24 +90,23 @@ Item {
             var cy = h / 2;
             var outerRadius = Math.min(cx, cy) - 2;
 
-            // Scaled metrics based on radius
-            var isCompact = (outerRadius < 90); // Small 1/7th screen size scale flag
+            var isCompact = (outerRadius < 90);
             var tickScale = outerRadius / 150.0;
             var innerRadius = outerRadius - Math.max(12, 28 * tickScale);
 
-            // 1. Dial Background Disk Gradient
+            // 1. Premium Metallic Background Disk Gradient
             var bgGrad = ctx.createRadialGradient(cx, cy, 5, cx, cy, outerRadius);
             bgGrad.addColorStop(0, "#0F172A");
-            bgGrad.addColorStop(0.7, root.dialBgColor);
-            bgGrad.addColorStop(1, "#070C16");
+            bgGrad.addColorStop(0.65, root.dialBgColor);
+            bgGrad.addColorStop(1, "#030712");
 
             ctx.beginPath();
             ctx.arc(cx, cy, outerRadius, 0, 2 * Math.PI, false);
             ctx.fillStyle = bgGrad;
             ctx.fill();
 
-            // 2. Bezel Rim
-            ctx.lineWidth = Math.max(2, 4 * tickScale);
+            // 2. Bezel Rim (Dual Ring)
+            ctx.lineWidth = Math.max(2.5, 4.5 * tickScale);
             ctx.strokeStyle = root.dialRimColor;
             ctx.stroke();
 
@@ -114,8 +114,8 @@ Item {
             ctx.strokeStyle = Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.4);
             ctx.stroke();
 
-            // 3. Concentric Radar Grid Rings
-            ctx.strokeStyle = Qt.rgba(0.2, 0.3, 0.4, 0.3);
+            // 3. Concentric Radar Grid Rings & Crosshair
+            ctx.strokeStyle = Qt.rgba(0.2, 0.35, 0.5, 0.25);
             ctx.lineWidth = 1;
             var stepR = (innerRadius - Math.max(15, 40 * tickScale)) / 3;
             for (var r = 1; r <= 3; r++) {
@@ -130,14 +130,14 @@ Item {
             ctx.lineTo(cx + outerRadius - Math.max(10, 35 * tickScale), cy);
             ctx.moveTo(cx, cy - outerRadius + Math.max(10, 35 * tickScale));
             ctx.lineTo(cx, cy + outerRadius - Math.max(10, 35 * tickScale));
-            ctx.strokeStyle = Qt.rgba(0.2, 0.3, 0.5, 0.25);
+            ctx.strokeStyle = Qt.rgba(0.2, 0.35, 0.5, 0.2);
             ctx.stroke();
 
             // 4. Tick Marks & Numbers (0 to 360 degrees)
             ctx.save();
             ctx.translate(cx, cy);
 
-            var tickStep = isCompact ? 10 : 2; // Keep ticks clean at small 1/7th scale
+            var tickStep = isCompact ? 10 : 2;
 
             for (var deg = 0; deg < 360; deg += tickStep) {
                 var rad = (deg - 90) * Math.PI / 180;
@@ -145,8 +145,8 @@ Item {
                 var isMajor = (deg % 30 === 0);
                 var isMedium = (deg % 10 === 0 && !isMajor);
 
-                var tickLen = isCardinal ? Math.max(8, 18 * tickScale) :
-                              (isMajor ? Math.max(6, 14 * tickScale) :
+                var tickLen = isCardinal ? Math.max(9, 18 * tickScale) :
+                              (isMajor ? Math.max(7, 14 * tickScale) :
                               (isMedium ? Math.max(4, 9 * tickScale) : Math.max(3, 5 * tickScale)));
 
                 var r1 = outerRadius - 2;
@@ -162,7 +162,7 @@ Item {
                 ctx.lineTo(x2, y2);
 
                 if (isCardinal) {
-                    ctx.lineWidth = Math.max(2, 3.5 * tickScale);
+                    ctx.lineWidth = Math.max(2.5, 4 * tickScale);
                     if (deg === 0) ctx.strokeStyle = "#FF4B4B";       // North Red
                     else if (deg === 90) ctx.strokeStyle = "#00F0FF";  // East Cyan
                     else if (deg === 180) ctx.strokeStyle = "#10B981"; // South Emerald
@@ -179,7 +179,7 @@ Item {
                 }
                 ctx.stroke();
 
-                // Numbers & Labels for every 30 degrees (or major 4 at compact scale)
+                // Numbers & Labels for every 30 degrees (Highlighting 4 Major Directions)
                 if (isMajor) {
                     var labelR = r2 - (isCardinal ? Math.max(10, 16 * tickScale) : Math.max(8, 12 * tickScale));
                     var lx = labelR * Math.cos(rad);
@@ -194,11 +194,10 @@ Item {
                     else if (deg === 180) labelText = isCompact ? "S 180°" : "S (180°)";
                     else if (deg === 270) labelText = isCompact ? "W 270°" : "W (270°)";
 
-                    // Hide non-cardinal numbers if compact to prevent text overlap
                     var showThisText = !isCompact || isCardinal;
 
                     if (showThisText) {
-                        var fontPx = isCardinal ? Math.max(9, Math.min(13, Math.round(11 * tickScale))) :
+                        var fontPx = isCardinal ? Math.max(9, Math.min(13, Math.round(11.5 * tickScale))) :
                                                   Math.max(7, Math.min(10, Math.round(9 * tickScale)));
                         ctx.font = isCardinal ? "bold " + fontPx + "px sans-serif" : fontPx + "px sans-serif";
                         ctx.textAlign = "center";
@@ -222,7 +221,7 @@ Item {
                 }
             }
 
-            // 5. Major 4 Cardinal Direction Outer Notch Indicators (N 0°, E 90°, S 180°, W 270°)
+            // 5. Major 4 Direction Outer Notch Indicators (N 0°, E 90°, S 180°, W 270°)
             var cardinalPoints = [
                 { deg: 0,   color: "#FF4B4B" },
                 { deg: 90,  color: "#00F0FF" },
@@ -230,8 +229,8 @@ Item {
                 { deg: 270, color: "#FF9E00" }
             ];
 
-            var notchW = Math.max(3, 5 * tickScale);
-            var notchH = Math.max(4, 7 * tickScale);
+            var notchW = Math.max(3.5, 5.5 * tickScale);
+            var notchH = Math.max(4.5, 7.5 * tickScale);
 
             for (var c = 0; c < cardinalPoints.length; c++) {
                 var cp = cardinalPoints[c];
@@ -301,7 +300,7 @@ Item {
         }
     }
 
-    // --- Layer 3: Rotating Azimuth Pointer / Needle ---
+    // --- Layer 3: Rotating Pointer / Laser Needle ---
     Item {
         id: needleContainer
         anchors.fill: dialCanvas
@@ -330,10 +329,10 @@ Item {
                 var tailY = cy + Math.max(12, 24 * scale);
                 var nw = Math.max(3, 5 * scale);
 
-                // Needle Body Pointer
+                // Needle Body Laser Gradient Pointer
                 var grad = ctx.createLinearGradient(cx, pointerTipY, cx, cy);
                 grad.addColorStop(0, root.accentColor);
-                grad.addColorStop(1, Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.2));
+                grad.addColorStop(1, Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.15));
 
                 ctx.beginPath();
                 ctx.moveTo(cx, pointerTipY);
@@ -345,7 +344,7 @@ Item {
                 ctx.fillStyle = grad;
                 ctx.fill();
 
-                // Center line
+                // Illuminated center line
                 ctx.strokeStyle = "#FFFFFF";
                 ctx.lineWidth = Math.max(1, 1.5 * scale);
                 ctx.beginPath();
@@ -353,7 +352,7 @@ Item {
                 ctx.lineTo(cx, cy - 8);
                 ctx.stroke();
 
-                // Counterweight tail
+                // Tail counterweight
                 ctx.fillStyle = Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.6);
                 ctx.beginPath();
                 ctx.moveTo(cx, tailY + Math.max(5, 8 * scale));
@@ -365,58 +364,50 @@ Item {
         }
     }
 
-    // --- Layer 4: HUD Digital Readout (Center Cap) ---
+    // --- Layer 4: HUD Digital Center Readout Cap (WITHOUT "AZIMUTH" text) ---
     Rectangle {
         id: centerHud
         visible: root.showCenterHud
-        width: Math.min(parent.width, parent.height) * 0.42
+        width: Math.min(parent.width, parent.height) * 0.40
         height: width
         anchors.centerIn: parent
         radius: width / 2
-        color: "#0F172A"
+        color: "#0B1120"
         border.color: dialMouseArea.pressed ? root.accentColor : "#334155"
-        border.width: Math.max(1, width * 0.03)
+        border.width: Math.max(1.5, width * 0.035)
 
-        // Glassmorphic overlay effect
+        // Glassmorphic Overlay Gradient
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.08) }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.4) }
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.09) }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.45) }
             }
         }
 
         ColumnLayout {
             anchors.centerIn: parent
-            spacing: 0
+            spacing: 2
 
-            Text {
-                visible: parent.parent.width > 50
-                text: "AZIMUTH"
-                font.pixelSize: Math.max(7, Math.min(10, parent.parent.width * 0.12))
-                font.bold: true
-                font.letterSpacing: 0.5
-                color: "#64748B"
-                Layout.alignment: Qt.AlignHCenter
-            }
-
+            // Large Digital Numerical Readout (Word "AZIMUTH" removed!)
             Text {
                 id: degreeText
                 text: root.formatDegree(root.azimuth)
-                font.pixelSize: Math.max(10, Math.min(18, parent.parent.width * 0.28))
+                font.pixelSize: Math.max(12, Math.min(22, parent.parent.width * 0.32))
                 font.bold: true
                 font.family: "Monospace"
                 color: root.accentColor
                 Layout.alignment: Qt.AlignHCenter
             }
 
+            // Cardinal Direction Tag
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 3
+                spacing: 4
 
                 Rectangle {
-                    width: Math.max(3, parent.parent.parent.width * 0.06)
+                    width: Math.max(4, parent.parent.parent.width * 0.07)
                     height: width
                     radius: width / 2
                     color: root.accentColor
@@ -424,7 +415,7 @@ Item {
 
                 Text {
                     text: root.getCardinalDirection(root.azimuth)
-                    font.pixelSize: Math.max(8, Math.min(12, parent.parent.parent.width * 0.16))
+                    font.pixelSize: Math.max(9, Math.min(13, parent.parent.parent.width * 0.18))
                     font.bold: true
                     color: root.textColor
                 }
