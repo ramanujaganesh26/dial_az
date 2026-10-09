@@ -1,0 +1,19 @@
+# Build directories
+build/
+bin/
+lib/
+out/
+.qt/
+.qmlls.ini
+
+# IDE files
+.qtcreator/
+*.user
+.vs/
+.vscode/
+
+# Temp files
+*.obj
+*.exe
+*.o
+*.a
